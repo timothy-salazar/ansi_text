@@ -9,28 +9,89 @@ import re
 class AnsiText(MutableSequence):
     """ Reads in text that has had formatting applied using ANSI escape
     sequences (colored foreground, colored background, bold, underline, etc.).
-    The text can then be accessed and manipulated in a number of ways.
-        - The characters of the unformatted text can be 
+    This isn't really all that useful for composing ANSI formatted text, it's
+    more of a utility for easily editing text that already has had ANSI
+    formatting applied to it.
+    The text can then be accessed and manipulated in a number of ways. For the
+    examples below, assume you have an AnsiText object called 'atext'
+
+    Reading text into AnsiText object:
+        - If you have a string of text that already has ANSI formatting applied
+          to it, you can read it into an AnsiText object when the AnsiText
+          object is created:
+                > text = '\x1b[38;5;12mANSI formatted text\x1b[0m'
+                > atext = AnsiText(text)
+          or by using the 'read' method:
+                > text = '\x1b[38;5;12mANSI formatted text\x1b[0m'
+                > atext.read(text)
+
+    Reading from AnsiText object:
+        - Operations such as print() or str() which use the __str__() method
+          will receive the formatted text
+                > text = '\x1b[38;5;12mANSI formatted text\x1b[0m'
+                > atext.read(text)
+                > str(atext)
+                    '\x1b[38;5;12mANSI formatted text\x1b[0m'
+        - The unformatted text is available as the 'plaintext' attribute
+                > text = '\x1b[38;5;12mANSI formatted text\x1b[0m'
+                > atext.read(text)
+                > atext.plaintext
+                    'ANSI formatted text'
+        - The unformatted text can also be accessed through indexing
+                > text = '\x1b[38;5;12mANSI formatted text\x1b[0m'
+                > atext.read(text)
+                > atext[:]
+                    'ANSI formatted text'
+                > atext[5:11]
+                    'format'
+
+    Writing to AnsiText object:
+        - The text 
+
     """
-    def __init__(self):
+    def __init__(self, raw: str = None):
         """ things and stuff
         """
-        self.plaintext = []
+        self.plaintext = ''
         self.format_str = ''
         self.format_dict = dict()
-        # self.raw = ''
         self.regex = ''
         self.regex_stuff()
         self.slice_dict = dict()
+        if raw:
+            self.read(raw)
 
     def __getitem__(self, index):
         return self.plaintext[index]
 
     def __setitem__(self, index, value):
-        # temp = list(self.plaintext)
-        # temp[index] = value
-        # self.plaintext = ''.join(temp)
-        self.plaintext = self.plaintext[:index] + value + self.plaintext[index+1:]
+        # print('Index:', index)
+        # print('Value:', value)
+        # print('Plaintext start:', self.plaintext)
+        if isinstance(index, int):
+            # print('piece_1:', self.plaintext[:index])
+            # print('piece_2:', self.plaintext[index:])
+            # self.plaintext = self.plaintext[:index] + \
+            #     value + self.plaintext[index:]
+            first_part = slice(None, index)
+            last_part = slice(index+1, None) if (index != -1) else slice(-1, -1)
+        elif isinstance(index, slice):
+            if index.step:
+                raise ValueError(
+                    '''Slicing AnsiText objects with a step argument is not
+                    currently supported''')
+            first_part = slice(None, index.start) if index.start else slice(0, 0)
+            last_part = slice(index.stop, None) if index.stop else slice(-1, -1)
+            
+            # self.plaintext = self.plaintext[:index.start if index.start else 0]\
+            #     + value + (self.plaintext[index.stop:]  if index.stop else '')
+        # print('first slice:', first_part)
+        # print('-->', self.plaintext[first_part])
+        # print('last slice:', last_part)
+        # print('-->', self.plaintext[last_part])
+        self.plaintext = self.plaintext[first_part] \
+            + value + self.plaintext[last_part]
+        # print('Plaintext end:', self.plaintext)
 
     def __delitem__(self, index):
         # del self.plaintext[index]
@@ -68,11 +129,14 @@ class AnsiText(MutableSequence):
 
         s = ''
         for v, m in enumerate(matches):
-            # t = list(m.group('text'))
             t = m.group('text')
             self.format_dict[v] = slice(len(s), len(s)+len(t))
             s += t
         self.plaintext = s
+
+        # # This will make extra text added to 'plaintext' later unformatted
+        # self.format_dict[len(matches)] = slice(len(s), None)
+        # self.format_str += f'{{{len(matches)}}}'
 
     def regex_stuff(self):
         """ Builds the regular expression we'll use to process our text.

@@ -5,10 +5,19 @@ from ansi_text import AnsiText
 
 CLEAR = '\x1b[0m'
 
-class TestBasic:
+class TestRead:
     """ Basic test cases where we provide AnsiText with input
     and examine the output
     """
+    def test_empty(self):
+        "empty string"
+        raw = ''
+        ansi_text = AnsiText()
+        ansi_text.read(raw)
+        assert str(ansi_text) == raw
+        assert ansi_text.plaintext == raw
+        assert ansi_text.format_str == ''
+
     def test_basic(self):
         "Most basic test case"
         raw = 'some basic text'
@@ -17,7 +26,6 @@ class TestBasic:
         assert str(ansi_text) == raw
         assert ansi_text.plaintext == raw
         assert ansi_text.format_str == '{0}'
-        # assert ansi_text.format_dict == {0:raw}
 
     def test_one_color_foreground(self):
         "Tests string with one type of formatting applied throughout"
@@ -27,7 +35,6 @@ class TestBasic:
         assert str(ansi_text) == text
         assert ansi_text.plaintext == 'stuff'
         assert ansi_text.format_str == '\x1b[38;5;12m{0}\x1b[0m'
-        # assert ansi_text.format_dict == {0:'stuff'}
 
     def test_one_color_no_end(self):
         "Tests string with one type of formatting, no end"
@@ -37,7 +44,6 @@ class TestBasic:
         assert str(ansi_text) == text
         assert ansi_text.plaintext == 'stuff'
         assert ansi_text.format_str == '\x1b[38;5;12m{0}'
-        # assert ansi_text.format_dict == {0:'stuff'}
 
     def test_one_color_partway_through(self):
         "Tests string with one type of formatting, no end"
@@ -46,7 +52,6 @@ class TestBasic:
         ansi_text.read(text)
         assert str(ansi_text) == text
         assert ansi_text.format_str == '{0}\x1b[38;5;12m{1}\x1b[0m'
-        # assert ansi_text.format_dict == {0:'things and', 1:'stuff'}
 
     def test_one_color_partway_through_no_end(self):
         "Tests string with one type of formatting, no end"
@@ -56,7 +61,6 @@ class TestBasic:
         assert str(ansi_text) == text
         assert ansi_text.plaintext == 'things andstuff'
         assert ansi_text.format_str == '{0}\x1b[38;5;12m{1}'
-        # assert ansi_text.format_dict == {0:'things and', 1:'stuff'}
         
     def test_two_color_foreground(self):
         """ tests string with one type of formatting applied to the first half,
@@ -68,7 +72,36 @@ class TestBasic:
         assert str(ansi_text) == text
         assert ansi_text.plaintext == 'stuffthings'
         assert ansi_text.format_str == '\x1b[38;5;12m{0}\x1b[0m\x1b[38;5;9m{1}\x1b[0m'
-        # assert ansi_text.format_dict == {0:'stuff', 1:'things'}
+
+class TestWrite:
+
+    def test_write_1(self):
+        ''' basic tests writing to plaintext '''
+        text = '\x1b[38;5;12mstuff \x1b[0m\x1b[38;5;9mthings\x1b[0m'
+        atext = AnsiText(text)
+        atext[:5] = 'dogs!'
+        atext[-1] = '!'
+        assert atext.plaintext == 'dogs! thing!'
+        assert str(atext) == '\x1b[38;5;12mdogs! \x1b[0m\x1b[38;5;9mthing!\x1b[0m'
+
+    def test_write_2(self):
+        ''' more tests writing to plaintext '''
+        text = '\x1b[38;5;12mstuff \x1b[0m\x1b[38;5;9mthings\x1b[0m'
+        atext = AnsiText(text)
+        atext[5:] = 'dog'
+        atext[:5] = 'good-'
+        assert atext.plaintext == 'good-dog'
+        assert str(atext) == '\x1b[38;5;12mgood-d\x1b[0m\x1b[38;5;9mog\x1b[0m'
+
+    def test_write_3(self):
+        ''' more tests writing to plaintext '''
+        text = '\x1b[38;5;12mstuff \x1b[0m\x1b[38;5;9mthings\x1b[0m'
+        atext = AnsiText(text)
+        atext[5:] = 'dog'
+        atext[0] = 'X'
+        atext[-1] = 'X'
+        assert atext.plaintext == 'XtuffdoX'
+        assert str(atext) == '\x1b[38;5;12mXtuffd\x1b[0m\x1b[38;5;9moX\x1b[0m'
 
 class TestIndexing:
     """ Testing whether AnsiText indexing works as expected
@@ -82,6 +115,7 @@ class TestIndexing:
         assert ansi_text[0] == 's'
         assert ansi_text[:6] == 'some b'
         assert ansi_text[-1] == 't'
+        assert ansi_text[::-1] == 'txet cisab emos'
 
     def test_indexing_colored_text(self):
         " tests whether we can index into a string with basic ansi formatting"
@@ -92,6 +126,7 @@ class TestIndexing:
         assert ansi_text[0] == 's'
         assert ansi_text[:3] == 'stu'
         assert ansi_text[-1] == 'f'
+        assert ansi_text[::-1] == 'ffuts'
 
     def test_indexing_two_color_text(self):
         " tests whether we can index into a string with basic ansi formatting"
@@ -101,11 +136,9 @@ class TestIndexing:
         assert ansi_text[:] == 'stuffthings'
         assert ansi_text[0] == 's'
         assert ansi_text[:7] == 'stuffth'
+        assert ansi_text[-1] == 's'
         assert ansi_text[-2] == 'g'
-
-class TestMutable:
-    def test_overwrite(self):
-        pass
+        assert ansi_text[::-1] == 'sgnihtffuts'
 
 ########################
 # Testing AnsiText regex
