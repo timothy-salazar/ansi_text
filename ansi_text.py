@@ -9,11 +9,11 @@ import re
 class SliceThing():
     """ a slice thing
     """
-    def __init__(self, text=None, prev=None):
+    def __init__(self, text=None, prev=None, format_str=None):
         self.next = None
         self.prev = prev
         if prev:
-            self.start = prev.stop 
+            self.start = prev.stop
             prev.next = self
         else:
             self.start = 0
@@ -21,18 +21,18 @@ class SliceThing():
             self._stop = self.start + len(text)
         else:
             self._stop = -1
-        self.format_str = ''
+        self.format_str = format_str
         self.text = text
 
     def __repr__(self):
         return f'Start: {self.start} Stop: {self.stop}'
 
     def inc_start(self, val):
-        "add val to the start"
+        "add val to the start index"
         self.start += val
 
     def inc_stop(self, val):
-        "add val to the stop"
+        "add val to the stop index"
         self._stop += val
 
     @property
@@ -129,9 +129,11 @@ class AnsiText(MutableSequence):
         self.format_dict = dict()
         self.regex = ''
         self.regex_stuff()
+        self.start_node = None
         # self.slice_dict = dict()
         if raw:
             self.read(raw)
+        
 
     def __getitem__(self, index):
         return self.plaintext[index]
@@ -201,7 +203,7 @@ class AnsiText(MutableSequence):
         # self.format_dict = {v:m.group('text') for v, m in enumerate(matches)}
 
         # self.slice_dict = {v:slice(m.start('text'), m.end('text')) for v,m in enumerate(matches)}
-
+        
 
         s = ''
         for v, m in enumerate(matches):
@@ -213,6 +215,19 @@ class AnsiText(MutableSequence):
         # # This will make extra text added to 'plaintext' later unformatted
         # self.format_dict[len(matches)] = slice(len(s), None)
         # self.format_str += f'{{{len(matches)}}}'
+
+        node = None
+        for v, m in enumerate(matches):
+            fmt = get_group(m, 'fmt') + f'{{{v}}}' + get_group(m, 'end')
+            txt = m.group('text')
+            
+            if not node:
+                self.start_node = SliceThing(text=txt, format_str=fmt)
+                node = self.start_node
+            else:
+                node = SliceThing(text=txt, prev=node, format_str=fmt)
+
+
 
     def regex_stuff(self):
         """ Builds the regular expression we'll use to process our text.
