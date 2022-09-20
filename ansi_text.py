@@ -5,6 +5,29 @@ Timothy Salazar
 from collections.abc import MutableSequence
 import re
 
+ctr_seq = r'''
+    \x1b\[          # This marks the start of a control sequence
+    ([0-9]{1,3};)*? # semicolon-separated parameters
+    [0-9]{1,3}m     # final parameter
+'''
+end = fr'''
+    (?P<end>      # group name
+        {ctr_seq} # matches a control sequence
+    )*\Z         # This makes it so we'll always match the end, even if
+'''             #   the string doesn't end with a control sequence
+
+tst = fr'''(?mxs)       # Sets MULTILINE, VERBOSE, and DOTALL flags
+    (
+        (?P<fmt>({ctr_seq})+)  # matches one or more control sequences
+        |(?=[^\x1b])?   # This lets us skip ahead when the string 
+    )                   # doesn't begin with a control sequence
+    (?P<text>.+?)       # The plaintext
+    ({end}              # Either a control sequence ending the string or None
+    |(?={ctr_seq}))     # Looks ahead for control sequences not 
+'''                     # ending the string
+
+
+
 
 class SliceThing():
     """ a slice thing
@@ -13,44 +36,223 @@ class SliceThing():
         self.next = None
         self.prev = prev
         if prev:
-            self.start = prev.stop
+            # self.start = prev.stop
             prev.next = self
+            self.first = prev.first
+            self.prev.last = self
+            self.index = prev.index + len(text)
+            # self.format_str = format_str
+            # self._text = text
         else:
-            self.start = 0
-        if text:
-            self._stop = self.start + len(text)
-        else:
-            self._stop = -1
+            self.index = 0
+            # self.start = 0
+            self.first = self
+            self.last = self
+            # self.read(text)
+        # if text:
+            # self._stop = self.start + len(text)
+        # else:
+            # self._stop = -1
         self.format_str = format_str
-        self.text = text
+        self._text = text
 
-    def __repr__(self):
-        return f'Start: {self.start} Stop: {self.stop}'
+    # def __repr__(self):
+        # return f'Start: {self.start} Stop: {self.stop}'
+    def indices(self):
+        " Returns the start and stop indices for the substring "
+        return self.index, self.index + len(self.text)
 
-    def inc_start(self, val):
-        "add val to the start index"
-        self.start += val
+    def read(self, raw):
+        " reads text, does regex "
+        matches = [i for i in re.finditer(tst, raw)]
+        get_group = lambda m, name: m.group(name) if m.group(name) else ''
+        node = None
+        for m in matches:
+            fmt = get_group(m, 'fmt') + '{}' + get_group(m, 'end')
+            txt = m.group('text')
+            if not node:
+                # self.start_node = SliceThing(text=txt, format_str=fmt)
+                self.format_str = fmt
+                self._text = txt
+                node = self
 
-    def inc_stop(self, val):
-        "add val to the stop index"
-        self._stop += val
+            else:
+                node = SliceThing(text=txt, prev=node, format_str=fmt)
+
+    def __str__(self):
+        if self.next:
+            return self.format_str.format(self._text) + str(self.next)
+        return self.format_str.format(self._text)
+
+    def __getitem__(self, index):
+        return self.text[index]
+
+        # stop_index = self.indices()[1]
+
+        # if not self.next:
+        #     # print('no next')
+        #     return self.text[index]
+        # elif isinstance(index, int):
+        #     # print('we are an int')
+        #     if index < 0:
+        #         print('Negative index! :D')
+        #         index = self.last.indices()[-1] - (index+1)
+        #         print('New index:', index)
+        #     if index >= stop_index:
+        #         # print('index greater than start')
+        #         # print('GOING ROUND')
+        #         return self.next.__getitem__(index)
+        #     else:
+        #         # print('Index:', index)
+        #         # print('Self Index:', self.index)
+        #         # print('Stop index:', stop_index)
+        #         # print('Text:', self.text)
+        #         return self.text[index-self.index]
+        #     # if self.index <= index <= stop_index:
+        #     #     return self.text[index]
+        #     # return self.next.__getitem__(index)
+        # elif isinstance(index, slice):
+        #     # print("we're a slice")
+        #     # s = ''
+        #     slice_start = index.start if index.start else 0
+        #     slice_stop = index.stop if index.stop else self.last.indices()[-1]
+        #     if slice_start >= stop_index:
+        #         return self.next.__getitem__(index)
+        #     elif slice_stop < stop_index:
+        #         sub_start = slice_start-self.index
+        #         if sub_start < 0:
+        #             sub_start = 0
+        #         return self.text[sub_start:slice_stop-self.index]
+        #     else:
+        #         return self.text[slice_start-self.index:] + self.next.__getitem__(index)
+
+            # if (not index.start) or (index.start <= stop_index):
+            #     s += self.text[index]
+            # if (not index.stop) or (index.stop > stop_index):
+            #     return s + self.next.__getitem__(index)
+        # return self.text[index-self.index]
+
+    def __setitem__(self, index, value):
+        if isinstance(index, int):
+            # print('piece_1:', self.text[:index])
+            # print('piece_2:', self.text[index:])
+            # self.text = self.text[:index] + \
+            #     value + self.text[index:]
+            first_part = slice(None, index)
+            last_part = slice(index+1, None) if (index != -1) else slice(-1, -1)
+        elif isinstance(index, slice):
+            if index.step:
+                raise ValueError(
+                    '''Slicing SliceThing objects with a step argument is not
+                    currently supported''')
+            first_part = slice(None, index.start) if index.start else slice(0, 0)
+            last_part = slice(index.stop, None) if index.stop else slice(-1, -1)
+        else:
+            raise ValueError(f'''
+                Unexpected value passed as index to SliceThing object:
+                {index}''')
+            # self.text = self.text[:index.start if index.start else 0]\
+            #     + value + (self.text[index.stop:]  if index.stop else '')
+        # print('first slice:', first_part)
+        # print('-->', self.text[first_part])
+        # print('last slice:', last_part)
+        # print('-->', self.text[last_part])
+        self.text = self.text[first_part] \
+            + value + self.text[last_part]
 
     @property
-    def stop(self):
-        " The index at which this slice ends "
-        return self._stop
+    def last(self):
+        " the last node in the list "
+        return self._last
 
-    @stop.setter
-    def stop(self, value):
-        inc = value - self.stop
-        self._stop = value
-        current_slice = self.next
-        while True:
-            if not current_slice:
-                break
-            current_slice.inc_start(inc)
-            current_slice.inc_stop(inc)
-            current_slice = current_slice.next
+    @last.setter
+    def last(self, value):
+        self._last = value
+        if self.prev:
+            self.prev.last = value
+
+    @property
+    def text(self):
+        " returns he plaintext "
+        if self.next:
+            return self._text + self.next.text
+        return self._text
+
+    @text.setter
+    def text(self, text):
+        if not text:
+            return
+        text_len = len(self._text)
+        if self.next:
+            self._text = text[:text_len]
+            self.next.text = text[text_len:]
+        else:
+            self._text = text
+
+    @text.deleter
+    def text(self):
+        del self._text
+
+
+    #     inc = value - self.stop
+    #     self._stop = value
+    #     current_slice = self.next
+    #     while True:
+    #         if not current_slice:
+    #             break
+    #         current_slice.inc_start(inc)
+    #         current_slice.inc_stop(inc)
+    #         current_slice = current_slice.next
+
+    # def overwrite(self, text: str):
+    #     ''' Input:
+    #             text: str - the text which we want to replace self.text with.
+
+    #     Takes 'text' and overwrites self.text with it.
+    #     If 'text' is longer than self.text, then the remainder is passed to
+    #     self.next, and the process repeats.
+    #     The length of self.text will be the same before and after this operation
+    #     unless:
+    #         - 'text' is shorter than self.text
+    #         - self.next does not exist
+    #     In both cases, self.text will be set to equal 'text', causing the length
+    #     of self.text to decrease in the first case, and causing it to either
+    #     decrease or increase in the second case (assuming they have different
+    #     lengths, obviously).
+    #     '''
+    #     if not text:
+    #         return
+    #     l = len(self.text)
+    #     if self.next:
+    #         self.text = text[:l]
+    #         self.next.overwrite(text[l:])
+    #     else:
+    #         self.text = text
+
+    # def inc_start(self, val):
+    #     "add val to the start index"
+    #     self.start += val
+
+    # def inc_stop(self, val):
+    #     "add val to the stop index"
+    #     self._stop += val
+
+    # @property
+    # def stop(self):
+    #     " The index at which this slice ends "
+    #     return self._stop
+
+    # @stop.setter
+    # def stop(self, value):
+    #     inc = value - self.stop
+    #     self._stop = value
+    #     current_slice = self.next
+    #     while True:
+    #         if not current_slice:
+    #             break
+    #         current_slice.inc_start(inc)
+    #         current_slice.inc_stop(inc)
+    #         current_slice = current_slice.next
 
     ## This isn't needed, so removing it
     # @property
@@ -70,9 +272,9 @@ class SliceThing():
     #         current_slice.inc_stop(inc)
     #         current_slice = current_slice.prev
 
-    
 
-    
+
+
 class AnsiText(MutableSequence):
     """ Reads in text that has had formatting applied using ANSI escape
     sequences (colored foreground, colored background, bold, underline, etc.).
@@ -218,7 +420,7 @@ class AnsiText(MutableSequence):
 
         node = None
         for v, m in enumerate(matches):
-            fmt = get_group(m, 'fmt') + f'{{{v}}}' + get_group(m, 'end')
+            fmt = get_group(m, 'fmt') + '{}' + get_group(m, 'end')
             txt = m.group('text')
             
             if not node:
