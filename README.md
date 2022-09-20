@@ -39,6 +39,6 @@ or by indexing into the AnsiText object, as though it were an ordinary string:
 'I format'
 ```
 ## Writing to AnsiText object:
-The text can also be edited. The user can edit the plaintext through the 
+The text can also be edited. The user can edit the plaintext using slice assignment:
 
 ![](./images/atext_write.png)

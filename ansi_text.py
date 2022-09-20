@@ -6,6 +6,73 @@ from collections.abc import MutableSequence
 import re
 
 
+class SliceThing():
+    """ a slice thing
+    """
+    def __init__(self, text=None, prev=None):
+        self.next = None
+        self.prev = prev
+        if prev:
+            self.start = prev.stop 
+            prev.next = self
+        else:
+            self.start = 0
+        if text:
+            self._stop = self.start + len(text)
+        else:
+            self._stop = -1
+        self.format_str = ''
+        self.text = text
+
+    def __repr__(self):
+        return f'Start: {self.start} Stop: {self.stop}'
+
+    def inc_start(self, val):
+        "add val to the start"
+        self.start += val
+
+    def inc_stop(self, val):
+        "add val to the stop"
+        self._stop += val
+
+    @property
+    def stop(self):
+        " The index at which this slice ends "
+        return self._stop
+
+    @stop.setter
+    def stop(self, value):
+        inc = value - self.stop
+        self._stop = value
+        current_slice = self.next
+        while True:
+            if not current_slice:
+                break
+            current_slice.inc_start(inc)
+            current_slice.inc_stop(inc)
+            current_slice = current_slice.next
+
+    ## This isn't needed, so removing it
+    # @property
+    # def start(self):
+    #     " The index at which this slice begins "
+    #     return self._start
+
+    # @start.setter
+    # def start(self, value):
+    #     inc = value - self.start
+    #     self._start = value
+    #     current_slice = self.prev
+    #     while True:
+    #         if not current_slice:
+    #             break
+    #         current_slice.inc_start(inc)
+    #         current_slice.inc_stop(inc)
+    #         current_slice = current_slice.prev
+
+    
+
+    
 class AnsiText(MutableSequence):
     """ Reads in text that has had formatting applied using ANSI escape
     sequences (colored foreground, colored background, bold, underline, etc.).
@@ -46,7 +113,12 @@ class AnsiText(MutableSequence):
                     'format'
 
     Writing to AnsiText object:
-        - The text 
+        - The text can also be edited using slice assignment:
+                > text = '\x1b[38;5;12mANSI formatted text\x1b[0m'
+                > atext.read(text)
+                > atext[:4] = ':D'
+                > str(atext)
+                    '\x1b[38;5;12m:D formatted text\x1b[0m'
 
     """
     def __init__(self, raw: str = None):
@@ -57,7 +129,7 @@ class AnsiText(MutableSequence):
         self.format_dict = dict()
         self.regex = ''
         self.regex_stuff()
-        self.slice_dict = dict()
+        # self.slice_dict = dict()
         if raw:
             self.read(raw)
 
@@ -82,7 +154,10 @@ class AnsiText(MutableSequence):
                     currently supported''')
             first_part = slice(None, index.start) if index.start else slice(0, 0)
             last_part = slice(index.stop, None) if index.stop else slice(-1, -1)
-            
+        else:
+            raise ValueError(f'''
+                Unexpected value passed as index to AnsiText object:
+                {index}''')
             # self.plaintext = self.plaintext[:index.start if index.start else 0]\
             #     + value + (self.plaintext[index.stop:]  if index.stop else '')
         # print('first slice:', first_part)
@@ -126,6 +201,7 @@ class AnsiText(MutableSequence):
         # self.format_dict = {v:m.group('text') for v, m in enumerate(matches)}
 
         # self.slice_dict = {v:slice(m.start('text'), m.end('text')) for v,m in enumerate(matches)}
+
 
         s = ''
         for v, m in enumerate(matches):
