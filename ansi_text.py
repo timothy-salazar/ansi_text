@@ -28,22 +28,65 @@ tst = fr'''(?mxs)       # Sets MULTILINE, VERBOSE, and DOTALL flags
 
 
 class SubString:
+    """ like an ansi string, but bite sized :) """
     def __init__(self, text, fmt, prev=None,):
         self.text = text
         self.fmt = fmt
         self.prev = prev
-        self.next = None
+        self._next = None
         if prev:
             prev.next = self
             self.index = prev.index + 1
         else:
             self.index = 0
 
+    def __repr__(self):
+        return self.text
+
+    def __str__(self):
+        return self.fmt.format(self.text)
+
+    # def __iter__(self):
+    #     print('in iter...')
+    #     return self
+    #     # if self._next:
+    #     #     return [self] + self._next.__iter__()
+    #     # else:
+    #     #     return [self]
+
+    # def __next__(self):
+    #     if not self._next:
+    #         raise StopIteration
+    #     return self._next
+        # try:
+        #     return self._next
+        # except:
+        #     raise StopIteration
+        # if self._next:
+        #     return self._next
+        # raise StopIteration
+
     def __getitem__(self, index):
+        if isinstance(index, slice):
+            within_lower_bound = (not index.start) or (index.start <= self.index)
+            within_upper_bound = (not index.stop) or (index.stop >= self.index)
+            if within_lower_bound and within_upper_bound:
+                if self._next:
+                    return self.text + self._next.__getitem__(index)
+                else:
+                    return self.text
+            if not within_lower_bound:
+                if self._next:
+                    return self._next.__getitem__(index)
+                else:
+                    IndexError('SubString index out of range')
+            if not within_upper_bound:
+                return
+
         if index == self.index:
             return self
-        elif self.next:
-            return self.next.__getitem__(index)
+        elif self._next:
+            return self._next.__getitem__(index)
         else:
             raise IndexError('SubString index out of range')
 
@@ -53,8 +96,8 @@ class SubString:
             Type SubString does not support slices for item assignment''')
         if index == self.index:
             self.text = text
-        elif self.next:
-            return self.next.__setitem__(index, text)
+        elif self._next:
+            return self._next.__setitem__(index, text)
         else:
             raise IndexError('SubString index out of range')
 
@@ -78,14 +121,31 @@ class SliceThing():
             # self.read(text)
         self.format_str = format_str
         self._text = text
+        self.node = None
 
-    # def __repr__(self):
-    #     return 
+    def __repr__(self):
+        return self.text
 
     def __str__(self):
-        if self.next:
-            return self.format_str.format(self._text) + str(self.next)
-        return self.format_str.format(self._text)
+        pass
+        # if self.next:
+        #     return self.format_str.format(self._text) + str(self.next)
+        # return self.format_str.format(self._text)
+
+    # def read(self, raw):
+    #     " reads text, does regex "
+    #     matches = [i for i in re.finditer(tst, raw)]
+    #     get_group = lambda m, name: m.group(name) if m.group(name) else ''
+    #     node = None
+    #     for m in matches:
+    #         fmt = get_group(m, 'fmt') + '{}' + get_group(m, 'end')
+    #         txt = m.group('text')
+    #         if not node:
+    #             self.format_str = fmt
+    #             self._text = txt
+    #             node = self
+    #         else:
+    #             node = SliceThing(text=txt, prev=node, format_str=fmt)
 
     def read(self, raw):
         " reads text, does regex "
@@ -96,72 +156,76 @@ class SliceThing():
             fmt = get_group(m, 'fmt') + '{}' + get_group(m, 'end')
             txt = m.group('text')
             if not node:
-                self.format_str = fmt
-                self._text = txt
-                node = self
+                self.node = SubString(txt, fmt, node)
+                node = self.node
             else:
-                node = SliceThing(text=txt, prev=node, format_str=fmt)
+                node = SubString(txt, fmt, node)
+
 
     def __getitem__(self, index):
-        return self.text[index]
+        return self.node[index]
 
     def __setitem__(self, index, value):
-        if isinstance(index, int):
-            first_part = slice(None, index)
-            last_part = slice(index+1, None) if (index != -1) else slice(-1, -1)
-        elif isinstance(index, slice):
-            if index.step:
-                raise ValueError(
-                    '''Slicing SliceThing objects with a step argument is not
-                    currently supported''')
-            first_part = slice(None, index.start) if index.start else slice(0, 0)
-            last_part = slice(index.stop, None) if index.stop else slice(-1, -1)
-        else:
-            raise ValueError(f'''
-                Unexpected value passed as index to SliceThing object:
-                {index}''')
-        self.text = self.text[first_part] + value + self.text[last_part]
+        self.node[index] = value
 
-    @property
-    def last(self):
-        " the last node in the list "
-        return self._last
+    # def __setitem__(self, index, value):
+    #     if isinstance(index, int):
+    #         first_part = slice(None, index)
+    #         last_part = slice(index+1, None) if (index != -1) else slice(-1, -1)
+    #     elif isinstance(index, slice):
+    #         if index.step:
+    #             raise ValueError(
+    #                 '''Slicing SliceThing objects with a step argument is not
+    #                 currently supported''')
+    #         first_part = slice(None, index.start) if index.start else slice(0, 0)
+    #         last_part = slice(index.stop, None) if index.stop else slice(-1, -1)
+    #     else:
+    #         raise ValueError(f'''
+    #             Unexpected value passed as index to SliceThing object:
+    #             {index}''')
+    #     self.text = self.text[first_part] + value + self.text[last_part]
 
-    @last.setter
-    def last(self, value):
-        self._last = value
-        if self.prev:
-            self.prev.last = value
+    # @property
+    # def last(self):
+    #     " the last node in the list "
+    #     return self._last
+
+    # @last.setter
+    # def last(self, value):
+    #     self._last = value
+    #     if self.prev:
+    #         self.prev.last = value
 
     @property
     def text(self):
-        " returns he plaintext "
-        if self.next:
-            return self._text + self.next.text
-        return self._text
-
-    @text.setter
-    def text(self, text):
-        if not text:
-            return
-        text_len = len(self._text)
-        if self.next:
-            self._text = text[:text_len]
-            self.next.text = text[text_len:]
+        " returns the plaintext "
+        if self.node:
+            return self.node[:]
         else:
-            self._text = text
+            return ''
 
-    @text.deleter
-    def text(self):
-        del self._text
+    # @text.setter
+    # def text(self, text):
+    #     if not text:
+    #         return
+    #     text_len = len(self._text)
+    #     if self.next:
+    #         self._text = text[:text_len]
+    #         self.next.text = text[text_len:]
+    #     else:
+    #         self._text = text
+
+    # @text.deleter
+    # def text(self):
+    #     del self._text
 
 
-    @property
-    def groups(self):
-        """ Input:
-                index: int - the index of the group
-        """
-        return [self]
+    # @property
+    # def groups(self):
+    #     """ Input:
+    #             index: int - the index of the group
+    #     """
+    #     return [self]
 
     #     inc = value - self.stop
     #     self._stop = value
