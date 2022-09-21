@@ -2,7 +2,7 @@
 Timothy Salazar
 2022-09-16
 """
-from collections.abc import MutableSequence
+from collections.abc import MutableSequence, Iterable
 import re
 
 ctr_seq = r'''
@@ -33,7 +33,7 @@ class SubString:
         self.text = text
         self.fmt = fmt
         self.prev = prev
-        self._next = None
+        self.next = None
         if prev:
             prev.next = self
             self.index = prev.index + 1
@@ -46,38 +46,18 @@ class SubString:
     def __str__(self):
         return self.fmt.format(self.text)
 
-    # def __iter__(self):
-    #     print('in iter...')
-    #     return self
-    #     # if self._next:
-    #     #     return [self] + self._next.__iter__()
-    #     # else:
-    #     #     return [self]
-
-    # def __next__(self):
-    #     if not self._next:
-    #         raise StopIteration
-    #     return self._next
-        # try:
-        #     return self._next
-        # except:
-        #     raise StopIteration
-        # if self._next:
-        #     return self._next
-        # raise StopIteration
-
     def __getitem__(self, index):
         if isinstance(index, slice):
             within_lower_bound = (not index.start) or (index.start <= self.index)
             within_upper_bound = (not index.stop) or (index.stop >= self.index)
             if within_lower_bound and within_upper_bound:
-                if self._next:
-                    return self.text + self._next.__getitem__(index)
+                if self.next:
+                    return self.text + self.next.__getitem__(index)
                 else:
                     return self.text
             if not within_lower_bound:
-                if self._next:
-                    return self._next.__getitem__(index)
+                if self.next:
+                    return self.next.__getitem__(index)
                 else:
                     IndexError('SubString index out of range')
             if not within_upper_bound:
@@ -85,8 +65,8 @@ class SubString:
 
         if index == self.index:
             return self
-        elif self._next:
-            return self._next.__getitem__(index)
+        elif self.next:
+            return self.next.__getitem__(index)
         else:
             raise IndexError('SubString index out of range')
 
@@ -96,10 +76,18 @@ class SubString:
             Type SubString does not support slices for item assignment''')
         if index == self.index:
             self.text = text
-        elif self._next:
-            return self._next.__setitem__(index, text)
+        elif self.next:
+            return self.next.__setitem__(index, text)
         else:
             raise IndexError('SubString index out of range')
+
+    def get_text(self):
+        "gets the formatted text for this and all child nodes"
+        formatted_text = self.fmt.format(self.text)
+        if self.next:
+            return formatted_text + self.next.get_text()
+        else:
+            return formatted_text
 
 class SliceThing():
     """ a slice thing
@@ -122,12 +110,13 @@ class SliceThing():
         self.format_str = format_str
         self._text = text
         self.node = None
+        # self.groups = []
 
     def __repr__(self):
         return self.text
 
     def __str__(self):
-        pass
+        return self.node.get_text()
         # if self.next:
         #     return self.format_str.format(self._text) + str(self.next)
         # return self.format_str.format(self._text)
@@ -158,8 +147,10 @@ class SliceThing():
             if not node:
                 self.node = SubString(txt, fmt, node)
                 node = self.node
+                # self.groups.append(node)
             else:
                 node = SubString(txt, fmt, node)
+                # self.groups.append(node)
 
 
     def __getitem__(self, index):
