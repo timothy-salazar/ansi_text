@@ -27,7 +27,36 @@ tst = fr'''(?mxs)       # Sets MULTILINE, VERBOSE, and DOTALL flags
 '''                     # ending the string
 
 
+class SubString:
+    def __init__(self, text, fmt, prev=None,):
+        self.text = text
+        self.fmt = fmt
+        self.prev = prev
+        self.next = None
+        if prev:
+            prev.next = self
+            self.index = prev.index + 1
+        else:
+            self.index = 0
 
+    def __getitem__(self, index):
+        if index == self.index:
+            return self
+        elif self.next:
+            return self.next.__getitem__(index)
+        else:
+            raise IndexError('SubString index out of range')
+
+    def __setitem__(self, index, text):
+        if not isinstance(index, int):
+            raise ValueError('''
+            Type SubString does not support slices for item assignment''')
+        if index == self.index:
+            self.text = text
+        elif self.next:
+            return self.next.__setitem__(index, text)
+        else:
+            raise IndexError('SubString index out of range')
 
 class SliceThing():
     """ a slice thing
@@ -36,7 +65,6 @@ class SliceThing():
         self.next = None
         self.prev = prev
         if prev:
-            # self.start = prev.stop
             prev.next = self
             self.first = prev.first
             self.prev.last = self
@@ -45,22 +73,19 @@ class SliceThing():
             # self._text = text
         else:
             self.index = 0
-            # self.start = 0
             self.first = self
             self.last = self
             # self.read(text)
-        # if text:
-            # self._stop = self.start + len(text)
-        # else:
-            # self._stop = -1
         self.format_str = format_str
         self._text = text
 
     # def __repr__(self):
-        # return f'Start: {self.start} Stop: {self.stop}'
-    def indices(self):
-        " Returns the start and stop indices for the substring "
-        return self.index, self.index + len(self.text)
+    #     return 
+
+    def __str__(self):
+        if self.next:
+            return self.format_str.format(self._text) + str(self.next)
+        return self.format_str.format(self._text)
 
     def read(self, raw):
         " reads text, does regex "
@@ -71,73 +96,17 @@ class SliceThing():
             fmt = get_group(m, 'fmt') + '{}' + get_group(m, 'end')
             txt = m.group('text')
             if not node:
-                # self.start_node = SliceThing(text=txt, format_str=fmt)
                 self.format_str = fmt
                 self._text = txt
                 node = self
-
             else:
                 node = SliceThing(text=txt, prev=node, format_str=fmt)
-
-    def __str__(self):
-        if self.next:
-            return self.format_str.format(self._text) + str(self.next)
-        return self.format_str.format(self._text)
 
     def __getitem__(self, index):
         return self.text[index]
 
-        # stop_index = self.indices()[1]
-
-        # if not self.next:
-        #     # print('no next')
-        #     return self.text[index]
-        # elif isinstance(index, int):
-        #     # print('we are an int')
-        #     if index < 0:
-        #         print('Negative index! :D')
-        #         index = self.last.indices()[-1] - (index+1)
-        #         print('New index:', index)
-        #     if index >= stop_index:
-        #         # print('index greater than start')
-        #         # print('GOING ROUND')
-        #         return self.next.__getitem__(index)
-        #     else:
-        #         # print('Index:', index)
-        #         # print('Self Index:', self.index)
-        #         # print('Stop index:', stop_index)
-        #         # print('Text:', self.text)
-        #         return self.text[index-self.index]
-        #     # if self.index <= index <= stop_index:
-        #     #     return self.text[index]
-        #     # return self.next.__getitem__(index)
-        # elif isinstance(index, slice):
-        #     # print("we're a slice")
-        #     # s = ''
-        #     slice_start = index.start if index.start else 0
-        #     slice_stop = index.stop if index.stop else self.last.indices()[-1]
-        #     if slice_start >= stop_index:
-        #         return self.next.__getitem__(index)
-        #     elif slice_stop < stop_index:
-        #         sub_start = slice_start-self.index
-        #         if sub_start < 0:
-        #             sub_start = 0
-        #         return self.text[sub_start:slice_stop-self.index]
-        #     else:
-        #         return self.text[slice_start-self.index:] + self.next.__getitem__(index)
-
-            # if (not index.start) or (index.start <= stop_index):
-            #     s += self.text[index]
-            # if (not index.stop) or (index.stop > stop_index):
-            #     return s + self.next.__getitem__(index)
-        # return self.text[index-self.index]
-
     def __setitem__(self, index, value):
         if isinstance(index, int):
-            # print('piece_1:', self.text[:index])
-            # print('piece_2:', self.text[index:])
-            # self.text = self.text[:index] + \
-            #     value + self.text[index:]
             first_part = slice(None, index)
             last_part = slice(index+1, None) if (index != -1) else slice(-1, -1)
         elif isinstance(index, slice):
@@ -151,14 +120,7 @@ class SliceThing():
             raise ValueError(f'''
                 Unexpected value passed as index to SliceThing object:
                 {index}''')
-            # self.text = self.text[:index.start if index.start else 0]\
-            #     + value + (self.text[index.stop:]  if index.stop else '')
-        # print('first slice:', first_part)
-        # print('-->', self.text[first_part])
-        # print('last slice:', last_part)
-        # print('-->', self.text[last_part])
-        self.text = self.text[first_part] \
-            + value + self.text[last_part]
+        self.text = self.text[first_part] + value + self.text[last_part]
 
     @property
     def last(self):
@@ -193,6 +155,13 @@ class SliceThing():
     def text(self):
         del self._text
 
+
+    @property
+    def groups(self):
+        """ Input:
+                index: int - the index of the group
+        """
+        return [self]
 
     #     inc = value - self.stop
     #     self._stop = value
