@@ -2,7 +2,8 @@
 Timothy Salazar
 2022-09-16
 """
-from collections.abc import MutableSequence, Iterable
+from collections.abc import MutableSequence
+from collections import namedtuple
 import re
 
 ctr_seq = r'''
@@ -26,13 +27,25 @@ tst = fr'''(?mxs)       # Sets MULTILINE, VERBOSE, and DOTALL flags
     |(?={ctr_seq}))     # Looks ahead for control sequences not 
 '''                     # ending the string
 
+class SubStringTwo:
+    " lemme try something "
+    def __init__(self, text, fmt):
+        self.text = text
+        self.fmt = fmt
+    
+    def __str__(self):
+        return self.fmt.format(self.text)
+    
+    def __repr__(self):
+        return f'< SubString: {self.text} >'
+    
 
 class SubString:
     """ like an ansi string, but bite sized :) """
     def __init__(self, text, fmt, prev=None,):
         self.text = text
         self.fmt = fmt
-        self.prev = prev
+        # self.prev = prev
         self.next = None
         if prev:
             prev.next = self
@@ -41,7 +54,7 @@ class SubString:
             self.index = 0
 
     def __repr__(self):
-        return self.text
+        return f'< SubString: {self.text} >'
 
     def __str__(self):
         return self.fmt.format(self.text)
@@ -92,25 +105,25 @@ class SubString:
 class SliceThing():
     """ a slice thing
     """
-    def __init__(self, text=None, prev=None, format_str=None):
-        self.next = None
-        self.prev = prev
-        if prev:
-            prev.next = self
-            self.first = prev.first
-            self.prev.last = self
-            self.index = prev.index + len(text)
-            # self.format_str = format_str
-            # self._text = text
-        else:
-            self.index = 0
-            self.first = self
-            self.last = self
+    def __init__(self, text=None):
+        # self.next = None
+        # self.prev = prev
+        # if prev:
+        #     prev.next = self
+        #     self.first = prev.first
+        #     self.prev.last = self
+        #     self.index = prev.index + len(text)
+        #     # self.format_str = format_str
+        #     # self._text = text
+        # else:
+        #     self.index = 0
+        #     self.first = self
+        #     self.last = self
             # self.read(text)
-        self.format_str = format_str
+        # self.format_str = format_str
         self._text = text
         self.node = None
-        # self.groups = []
+        self.groups = []
 
     def __repr__(self):
         return self.text
@@ -147,6 +160,8 @@ class SliceThing():
             if not node:
                 self.node = SubString(txt, fmt, node)
                 node = self.node
+                # first_node = SubString(txt, fmt, node)
+                # node = first_node
                 # self.groups.append(node)
             else:
                 node = SubString(txt, fmt, node)
@@ -154,10 +169,22 @@ class SliceThing():
 
 
     def __getitem__(self, index):
-        return self.node[index]
+        if self.node:
+            return self.node[index]
 
     def __setitem__(self, index, value):
-        self.node[index] = value
+        if self.node:
+            self.node[index] = value
+        else:
+            raise ValueError
+
+    @property
+    def text(self):
+        " returns the plaintext "
+        if self.node:
+            return self.node[:]
+        else:
+            return ''
 
     # def __setitem__(self, index, value):
     #     if isinstance(index, int):
@@ -187,13 +214,7 @@ class SliceThing():
     #     if self.prev:
     #         self.prev.last = value
 
-    @property
-    def text(self):
-        " returns the plaintext "
-        if self.node:
-            return self.node[:]
-        else:
-            return ''
+    
 
     # @text.setter
     # def text(self, text):
