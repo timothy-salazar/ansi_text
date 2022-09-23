@@ -1,6 +1,6 @@
 import re
 import textwrap
-from ansi_text import AnsiText
+from ansi_text import AnsiText, get_regex
 
 
 CLEAR = '\x1b[0m'
@@ -58,7 +58,7 @@ class TestRead:
         assert str(ansi_text) == raw
         assert ansi_text.text == 'things andstuff'
         assert ansi_text.fmt == ['{}', '\x1b[38;5;12m{}']
-        
+
     def test_two_color_foreground(self):
         """ tests string with one type of formatting applied to the first half,
         and a second type of formatting applied to the second half
@@ -92,51 +92,12 @@ class TestWrite:
         assert str(atext) == '\x1b[38;5;12mstuff \x1b[0m\x1b[38;5;9mand doggos!\x1b[0m'
 
     def test_write_3(self):
-        ''' more tests writing to plaintext '''
-        text = '\x1b[38;5;12mstuff \x1b[0m\x1b[38;5;9mthings\x1b[0m'
+        '''testing deleting a group '''
+        text = 'stuff\x1b[38;5;9mthings\x1b[0m'
         atext = AnsiText(text)
-        atext[5:] = 'dog'
-        atext[0] = 'X'
-        atext[-1] = 'X'
-        assert atext.text == 'XtuffdoX'
-        assert str(atext) == '\x1b[38;5;12mXtuffd\x1b[0m\x1b[38;5;9moX\x1b[0m'
-
-class TestIndexing:
-    """ Testing whether AnsiText indexing works as expected
-    """
-    def test_indexing_basic(self):
-        " tests whether we can index into the string properly"
-        text = 'some basic text'
-        ansi_text = AnsiText()
-        ansi_text.read(text)
-        assert ansi_text[:] == 'some basic text'
-        assert ansi_text[0] == 's'
-        assert ansi_text[:6] == 'some b'
-        assert ansi_text[-1] == 't'
-        assert ansi_text[::-1] == 'txet cisab emos'
-
-    def test_indexing_colored_text(self):
-        " tests whether we can index into a string with basic ansi formatting"
-        text = '\x1b[38;5;12mstuff\x1b[0m'
-        ansi_text = AnsiText()
-        ansi_text.read(text)
-        assert ansi_text[:] == 'stuff'
-        assert ansi_text[0] == 's'
-        assert ansi_text[:3] == 'stu'
-        assert ansi_text[-1] == 'f'
-        assert ansi_text[::-1] == 'ffuts'
-
-    def test_indexing_two_color_text(self):
-        " tests whether we can index into a string with basic ansi formatting"
-        text = '\x1b[38;5;12mstuff\x1b[0m\x1b[38;5;9mthings\x1b[0m'
-        ansi_text = AnsiText()
-        ansi_text.read(text)
-        assert ansi_text[:] == 'stuffthings'
-        assert ansi_text[0] == 's'
-        assert ansi_text[:7] == 'stuffth'
-        assert ansi_text[-1] == 's'
-        assert ansi_text[-2] == 'g'
-        assert ansi_text[::-1] == 'sgnihtffuts'
+        del atext[0]
+        assert atext.text == 'things'
+        assert str(atext) == '\x1b[38;5;9mthings\x1b[0m'
 
 ########################
 # Testing AnsiText regex
@@ -147,8 +108,8 @@ class TestRegex:
     def test_regex_basic(self):
         """ text with no formatting """
         text = 'some basic text'
-        ansi_text = AnsiText()
-        m = [i for i in re.finditer(ansi_text.regex, text)]
+        regex = get_regex()
+        m = [i for i in re.finditer(regex, text)]
         assert [i.group('fmt') for i in m] == [None]
         assert [i.group('text') for i in m] == [text]
         assert [i.group('end') for i in m] == [None]
@@ -158,8 +119,8 @@ class TestRegex:
     def test_regex_basic_multiline(self):
         """ multiline text with no formatting """
         text = 'some basic text\nwith newlines and\nstuff!'
-        ansi_text = AnsiText()
-        m = [i for i in re.finditer(ansi_text.regex, text)]
+        regex = get_regex()
+        m = [i for i in re.finditer(regex, text)]
         assert [i.group('fmt') for i in m] == [None]
         assert [i.group('text') for i in m] == [text]
         assert [i.group('end') for i in m] == [None]
@@ -169,8 +130,8 @@ class TestRegex:
     def test_regex_simple_color(self):
         """ text with minimal formatting """
         text = '\x1b[38;5;12mstuff\x1b[0m'
-        ansi_text = AnsiText()
-        m = [i for i in re.finditer(ansi_text.regex, text)]
+        regex = get_regex()
+        m = [i for i in re.finditer(regex, text)]
         assert [i.group('fmt') for i in m] == ['\x1b[38;5;12m']
         assert [i.group('text') for i in m] == ['stuff']
         assert [i.group('end') for i in m] == [CLEAR]
@@ -180,8 +141,8 @@ class TestRegex:
     def test_regex_color_no_stop(self):
         """ text with a formatting start, but no clear statement"""
         text = '\x1b[38;5;12mstuff'
-        ansi_text = AnsiText()
-        m = [i for i in re.finditer(ansi_text.regex, text)]
+        regex = get_regex()
+        m = [i for i in re.finditer(regex, text)]
         assert [i.group('fmt') for i in m] == ['\x1b[38;5;12m']
         assert [i.group('text') for i in m] == ['stuff']
         assert [i.group('end') for i in m]  == [None]
@@ -191,8 +152,8 @@ class TestRegex:
     def test_regex_multicolor_no_stops(self):
         " text where the formatting changes without any clear statements"
         text = '\x1b[38;5;12mstuff\x1b[38;5;9mthings\x1b[38;5;14mdetritus'
-        ansi_text = AnsiText()
-        m = [i for i in re.finditer(ansi_text.regex, text)]
+        regex = get_regex()
+        m = [i for i in re.finditer(regex, text)]
         assert [i.group('fmt') for i in m] == [
             '\x1b[38;5;12m',
             '\x1b[38;5;9m',
@@ -211,8 +172,8 @@ class TestRegex:
             \x1b[38;5;12mstuff
             and things
             and junk\x1b[0m''')
-        ansi_text = AnsiText()
-        m = [i for i in re.finditer(ansi_text.regex, text)]
+        regex = get_regex()
+        m = [i for i in re.finditer(regex, text)]
         assert [i.group('fmt') for i in m] == ['\x1b[38;5;12m']
         assert [i.group('text') for i in m] == ['stuff\nand things\nand junk']
         assert [i.group('end') for i in m] == [CLEAR]
@@ -225,8 +186,8 @@ class TestRegex:
             \x1b[38;5;12mstuff
             and \x1b[0m\x1b[38;5;9mthings
             and junk\x1b[0m''')
-        ansi_text = AnsiText()
-        m = [i for i in re.finditer(ansi_text.regex, text)]
+        regex = get_regex()
+        m = [i for i in re.finditer(regex, text)]
         assert [i.group('fmt') for i in m] == [
             '\x1b[38;5;12m',
             '\x1b[0m\x1b[38;5;9m']
