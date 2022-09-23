@@ -39,8 +39,15 @@ def get_regex():
     return ansi_re
 
 class AnsiSubString:
-    " A  "
-    def __init__(self, match):
+    """ Contains text, along with any ANSI formatting which has been applied to
+    it.
+
+    The formatted text can be accessed by the __str__ method (i.e., calling
+    str() or print() on it). The plaintext can be accessed through the 'text'
+    attribute. If self.text is replaced, the new text will have the
+    same formatting applied to it.
+    """
+    def __init__(self, match: re.Match):
         get_group = lambda m, name: m.group(name) if m.group(name) else ''
         self.fmt = get_group(match, 'fmt') + '{}' + get_group(match, 'end')
         self.text = match.group('text')
@@ -61,58 +68,52 @@ class AnsiText():
     formatting applied to it.
     """
     def __init__(self, raw=None):
-        self._text = None
         self.groups = []
         if raw:
             self.read(raw)
 
     def __repr__(self):
-        return f'< AnsiText: {self.text} >'
+        return f'< AnsiText: {self.text!r} >'
 
     def __str__(self):
+        " This returns the ANSI formatted text in its entirity "
         return ''.join([str(i) for i in self.groups])
 
     def read(self, raw):
-        " reads text, does regex "
+        """ Input:
+                raw: str - the raw text we want to process
+
+        Reads in text and uses a regular expression to find matches, which are
+        then used to create AnsiSubString objects. These contain the unformatted
+        text along with the ANSI formatting information.
+        """
         ansi_re = get_regex()
-        self.groups = [AnsiSubString(match) 
-            for match in re.finditer(ansi_re, raw)]
-        # matches = [i for i in re.finditer(tst, raw)]
-        # get_group = lambda m, name: m.group(name) if m.group(name) else ''
-        # node = None
-        # for m in matches:
-        #     fmt = get_group(m, 'fmt') + '{}' + get_group(m, 'end')
-        #     txt = m.group('text')
-        #     if not node:
-        #         self.node = SubString(txt, fmt, node)
-        #         node = self.node
-        #         # first_node = SubString(txt, fmt, node)
-        #         # node = first_node
-        #         # self.groups.append(node)
-        #     else:
-                # node = SubString(txt, fmt, node)
-                # self.groups.append(node)
-        # [for m in matches]
+        self.groups = [AnsiSubString(match)
+                       for match in re.finditer(ansi_re, raw)]
 
     def __getitem__(self, index):
         return self.groups[index]
-        # if self.node:
-        #     return self.node[index]
 
     def __setitem__(self, index, value):
         self.groups[index].text = value
-        # if self.node:
-        #     self.node[index] = value
-        # else:
-        #     raise ValueError
 
     @property
     def text(self):
-        " returns the plaintext "
-        if self.groups:
-            return ''.join([i.text for i in self.groups])
-        else:
-            return ''
+        " Returns the plaintext for all groups "
+        return ''.join([i.text for i in self.groups])
+    
+    @property
+    def fmt(self):
+        """ Returns a list of formattable strings.
+        They have the form:
+            "<ANSI formatting>{}<more ANSI formatting>"
+        where the <ANSI formatting> chunks are optional.
+        """
+        return [i.fmt for i in self.groups]
+        # if self.groups:
+        #     return [i.fmt for i in self.groups]
+        # else:
+        #     return ['{}']
 
 # class AnsiText(MutableSequence):
 #     """ Reads in text that has had formatting applied using ANSI escape

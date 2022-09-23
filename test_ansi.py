@@ -12,86 +12,84 @@ class TestRead:
     def test_empty(self):
         "empty string"
         raw = ''
-        ansi_text = AnsiText()
-        ansi_text.read(raw)
+        ansi_text = AnsiText(raw)
         assert str(ansi_text) == raw
-        assert ansi_text.plaintext == raw
-        assert ansi_text.format_str == ''
+        assert ansi_text.text == raw
+        assert ansi_text.groups == []
+        assert ansi_text.fmt == []
 
     def test_basic(self):
         "Most basic test case"
         raw = 'some basic text'
-        ansi_text = AnsiText()
-        ansi_text.read(raw)
+        ansi_text = AnsiText(raw)
         assert str(ansi_text) == raw
-        assert ansi_text.plaintext == raw
-        assert ansi_text.format_str == '{0}'
+        assert ansi_text.text == raw
+        assert len(ansi_text.groups) == 1
+        assert ansi_text.fmt == ['{}']
 
     def test_one_color_foreground(self):
         "Tests string with one type of formatting applied throughout"
-        text = '\x1b[38;5;12mstuff\x1b[0m'
-        ansi_text = AnsiText()
-        ansi_text.read(text)
-        assert str(ansi_text) == text
-        assert ansi_text.plaintext == 'stuff'
-        assert ansi_text.format_str == '\x1b[38;5;12m{0}\x1b[0m'
+        raw = '\x1b[38;5;12mstuff\x1b[0m'
+        ansi_text = AnsiText(raw)
+        assert str(ansi_text) == raw
+        assert ansi_text.text == 'stuff'
+        assert ansi_text.fmt == ['\x1b[38;5;12m{}\x1b[0m']
 
     def test_one_color_no_end(self):
         "Tests string with one type of formatting, no end"
-        text = '\x1b[38;5;12mstuff'
-        ansi_text = AnsiText()
-        ansi_text.read(text)
-        assert str(ansi_text) == text
-        assert ansi_text.plaintext == 'stuff'
-        assert ansi_text.format_str == '\x1b[38;5;12m{0}'
+        raw = '\x1b[38;5;12mstuff'
+        ansi_text = AnsiText(raw)
+        assert str(ansi_text) == raw
+        assert ansi_text.text == 'stuff'
+        assert ansi_text.fmt == ['\x1b[38;5;12m{}']
 
     def test_one_color_partway_through(self):
         "Tests string with one type of formatting, no end"
-        text = 'things and\x1b[38;5;12mstuff\x1b[0m'
-        ansi_text = AnsiText()
-        ansi_text.read(text)
-        assert str(ansi_text) == text
-        assert ansi_text.format_str == '{0}\x1b[38;5;12m{1}\x1b[0m'
+        raw = 'things and\x1b[38;5;12mstuff\x1b[0m'
+        ansi_text = AnsiText(raw)
+        assert str(ansi_text) == raw
+        assert ansi_text.text == 'things andstuff'
+        assert ansi_text.fmt == ['{}', '\x1b[38;5;12m{}\x1b[0m']
 
     def test_one_color_partway_through_no_end(self):
         "Tests string with one type of formatting, no end"
-        text = 'things and\x1b[38;5;12mstuff'
-        ansi_text = AnsiText()
-        ansi_text.read(text)
-        assert str(ansi_text) == text
-        assert ansi_text.plaintext == 'things andstuff'
-        assert ansi_text.format_str == '{0}\x1b[38;5;12m{1}'
+        raw = 'things and\x1b[38;5;12mstuff'
+        ansi_text = AnsiText(raw)
+        assert str(ansi_text) == raw
+        assert ansi_text.text == 'things andstuff'
+        assert ansi_text.fmt == ['{}', '\x1b[38;5;12m{}']
         
     def test_two_color_foreground(self):
         """ tests string with one type of formatting applied to the first half,
         and a second type of formatting applied to the second half
         """
-        text = '\x1b[38;5;12mstuff\x1b[0m\x1b[38;5;9mthings\x1b[0m'
-        ansi_text = AnsiText()
-        ansi_text.read(text)
-        assert str(ansi_text) == text
-        assert ansi_text.plaintext == 'stuffthings'
-        assert ansi_text.format_str == '\x1b[38;5;12m{0}\x1b[0m\x1b[38;5;9m{1}\x1b[0m'
+        raw = '\x1b[38;5;12mstuff\x1b[0m\x1b[38;5;9mthings\x1b[0m'
+        ansi_text = AnsiText(raw)
+        assert str(ansi_text) == raw
+        assert ansi_text.text == 'stuffthings'
+        assert ansi_text.fmt == [
+            '\x1b[38;5;12m{}',
+            '\x1b[0m\x1b[38;5;9m{}\x1b[0m']
 
 class TestWrite:
+    """ Tests to see if we're able to write to the AnsiText object as expected.
+    """
 
     def test_write_1(self):
-        ''' basic tests writing to plaintext '''
+        ''' basic test overwriting group 0 '''
         text = '\x1b[38;5;12mstuff \x1b[0m\x1b[38;5;9mthings\x1b[0m'
         atext = AnsiText(text)
-        atext[:5] = 'dogs!'
-        atext[-1] = '!'
-        assert atext.plaintext == 'dogs! thing!'
-        assert str(atext) == '\x1b[38;5;12mdogs! \x1b[0m\x1b[38;5;9mthing!\x1b[0m'
+        atext[0] = 'dogs! '
+        assert atext.text == 'dogs! things'
+        assert str(atext) == '\x1b[38;5;12mdogs! \x1b[0m\x1b[38;5;9mthings\x1b[0m'
 
     def test_write_2(self):
-        ''' more tests writing to plaintext '''
+        ''' basic test, overwriting last group '''
         text = '\x1b[38;5;12mstuff \x1b[0m\x1b[38;5;9mthings\x1b[0m'
         atext = AnsiText(text)
-        atext[5:] = 'dog'
-        atext[:5] = 'good-'
-        assert atext.plaintext == 'good-dog'
-        assert str(atext) == '\x1b[38;5;12mgood-d\x1b[0m\x1b[38;5;9mog\x1b[0m'
+        atext[-1] = 'and doggos!'
+        assert atext.text == 'stuff and doggos!'
+        assert str(atext) == '\x1b[38;5;12mstuff \x1b[0m\x1b[38;5;9mand doggos!\x1b[0m'
 
     def test_write_3(self):
         ''' more tests writing to plaintext '''
@@ -100,7 +98,7 @@ class TestWrite:
         atext[5:] = 'dog'
         atext[0] = 'X'
         atext[-1] = 'X'
-        assert atext.plaintext == 'XtuffdoX'
+        assert atext.text == 'XtuffdoX'
         assert str(atext) == '\x1b[38;5;12mXtuffd\x1b[0m\x1b[38;5;9moX\x1b[0m'
 
 class TestIndexing:
