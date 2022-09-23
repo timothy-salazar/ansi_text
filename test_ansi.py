@@ -1,3 +1,4 @@
+""" Tests for pytest """
 import re
 import textwrap
 from ansi_text import AnsiText, get_regex

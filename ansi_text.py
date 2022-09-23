@@ -1,4 +1,5 @@
-"""
+""" Tools to make it easier to read and edit ANSI formatted text
+
 Timothy Salazar
 2022-09-16
 """
@@ -61,7 +62,7 @@ class AnsiSubString:
         return self.fmt.format(self.text)
 
     def __repr__(self):
-        return f'< AnsiSubString: {self.text} >'
+        return f'< AnsiSubString: {self.text!r} >'
 
 class AnsiText():
     """ Class for reading and manipulating ANSI formatted text.
