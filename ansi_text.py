@@ -2,7 +2,7 @@
 """
 import re
 
-def get_regex():
+def get_regex() -> str:
     """ Input:
             None
         Output:
@@ -13,6 +13,8 @@ def get_regex():
     I made it a function rather than a method to:
         - keep things tidy
         - make it easier to import elsewhere, if needed
+    Later I might add some extra functionality (an argument to make it so
+    newlines always terminate a group, for example), but for now it's good
     """
     # This matches control sequences
     ctr_seq = r'''
@@ -71,7 +73,7 @@ class AnsiSubString:
         self._text[index] = value
 
     @property
-    def text(self):
+    def text(self) -> str:
         "the plaintext for this substring"
         return ''.join(self._text)
 
@@ -88,7 +90,32 @@ class AnsiText():
     more of a utility for easily editing text that already has had ANSI
     formatting applied to it.
     """
-    def __init__(self, raw=None, groups=None, index_groups=True):
+    def __init__(
+            self,
+            raw: str = None,
+            index_groups: bool = True,
+            groups: list = None):
+        """ Input:
+                raw: str - the raw text we want to read into the AnsiText
+                    object. This will look something like:
+                        "\x1b[38;5;12mstuff\x1b[0m"
+                index_groups: bool - the unformatted text can be accessed in
+                    one of two ways using indexing. If index_groups is True,
+                    then indexing an AnsiText object will return the unformatted
+                    text of the group at that position. 'group' in this context
+                    means "a portion of the text with the same ANSI formatting".
+                    Example:
+                        If you have some ANSI formatted text consisting of the
+                        word "Dog" in red, and the word "Woof" in blue, "Dog"
+                        would be the first group, and you could access it with
+                        atext[0], or replace it with atext[0] = "Doggo"
+                    If index_groups is False, the unformatted text of all groups
+                    are accessed by indexing the AnsiText object, as though it
+                    were a string.
+                groups: list of AnsiSubString objects. This is only really used
+                    by the __add__ method, to make it easy to combine AnsiText
+                    objects
+        """
         self.index_groups = index_groups
         if groups:
             self.groups = groups
@@ -104,13 +131,14 @@ class AnsiText():
         " This returns the ANSI formatted text in its entirity "
         return ''.join([str(i) for i in self.groups])
 
-    def read(self, raw):
+    def read(self, raw: str):
         """ Input:
                 raw: str - the raw text we want to process
 
         Reads in text and uses a regular expression to find matches, which are
-        then used to create AnsiSubString objects. These contain the unformatted
-        text along with the ANSI formatting information.
+        then used to create AnsiSubString objects. Each of these contains
+        unformatted text along with the ANSI formatting information (if 
+        present).
         """
         ansi_re = get_regex()
         self.groups = [AnsiSubString(match)
@@ -128,7 +156,8 @@ class AnsiText():
             self.groups[index].text = value
             return
         # This is a little messier, but better than anything else I came up
-        # with. Also: kinda sad we have to copy this list
+        # with, and I think the "indexing into groups" method of
+        # reading/writing will be used more often
         text_list = [text for group in self.groups for text in group._text]
         text_list[index] = value
         for group in self.groups:
@@ -157,5 +186,6 @@ class AnsiText():
         They have the form:
             "<ANSI formatting>{}<more ANSI formatting>"
         where the <ANSI formatting> chunks are optional.
+        I put this here for testing, but someone might find another use for it
         """
         return [i.fmt for i in self.groups]

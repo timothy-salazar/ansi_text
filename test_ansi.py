@@ -264,7 +264,7 @@ class TestRegex:
         assert m[0].span() == (0, 20)
 
 class TestSubString:
-    """tests of substring functionality"""
+    """tests of substring read functionality"""
     def test_read_with_ansi(self):
         "does basic tests for ANSI formatted text"
         text = '\x1b[38;5;12mABCDEFG'
@@ -272,7 +272,7 @@ class TestSubString:
         match = re.match(regex, text)
         substring = AnsiSubString(match)
         assert substring.text == 'ABCDEFG'
-        assert str(substring) == 'ABCDEFG'
+        assert str(substring) == text
         assert substring._text == list('ABCDEFG')
         assert substring[0] == 'A'
         assert substring[-1] == 'G'
@@ -281,13 +281,14 @@ class TestSubString:
         assert substring[::-1] == 'GFEDCBA'
 
     def test_write_with_ansi(self):
+        "tests of substring write functionality"
         text = '\x1b[38;5;12mABCDEFG'
         regex = get_regex()
         match = re.match(regex, text)
         substring = AnsiSubString(match)
         substring[0] = '0'
         assert substring.text == '0BCDEFG'
-        assert str(substring) == '0BCDEFG'
+        assert str(substring) == '\x1b[38;5;12m0BCDEFG'
         substring[:3] = '123'
         assert substring.text == '123DEFG'
         substring.text = 'DOG'
