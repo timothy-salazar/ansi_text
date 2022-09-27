@@ -1,7 +1,7 @@
 """ Tests for pytest """
 import re
 import textwrap
-from ansi_text import AnsiText, get_regex
+from ansi_text import AnsiText, get_regex, AnsiSubString
 
 
 CLEAR = '\x1b[0m'
@@ -262,3 +262,35 @@ class TestRegex:
         assert [i.group('end') for i in m] == [None, CLEAR]
         assert len(m) == 2
         assert m[0].span() == (0, 20)
+
+class TestSubString:
+    """tests of substring functionality"""
+    def test_read_with_ansi(self):
+        "does basic tests for ANSI formatted text"
+        text = '\x1b[38;5;12mABCDEFG'
+        regex = get_regex()
+        match = re.match(regex, text)
+        substring = AnsiSubString(match)
+        assert substring.text == 'ABCDEFG'
+        assert str(substring) == 'ABCDEFG'
+        assert substring._text == list('ABCDEFG')
+        assert substring[0] == 'A'
+        assert substring[-1] == 'G'
+        assert substring[:3] == 'ABC'
+        assert substring[:] == 'ABCDEFG'
+        assert substring[::-1] == 'GFEDCBA'
+
+    def test_write_with_ansi(self):
+        text = '\x1b[38;5;12mABCDEFG'
+        regex = get_regex()
+        match = re.match(regex, text)
+        substring = AnsiSubString(match)
+        substring[0] = '0'
+        assert substring.text == '0BCDEFG'
+        assert str(substring) == '0BCDEFG'
+        substring[:3] = '123'
+        assert substring.text == '123DEFG'
+        substring.text = 'DOG'
+        assert substring[:] == 'DOG'
+        assert substring.text == 'DOG'
+        assert substring._text == list('DOG')
