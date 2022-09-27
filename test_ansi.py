@@ -1,7 +1,7 @@
 """ Tests for pytest """
 import re
 import textwrap
-from ansi_text import AnsiText, get_regex
+from ansi_text import AnsiText, get_regex, AnsiSubString
 
 
 CLEAR = '\x1b[0m'
@@ -72,7 +72,7 @@ class TestRead:
             '\x1b[38;5;12m{}',
             '\x1b[0m\x1b[38;5;9m{}\x1b[0m']
 
-class TestWrite:
+class TestWriteIndexGroups:
     """ Tests to see if we're able to write to the AnsiText object as expected.
     """
 
@@ -99,6 +99,70 @@ class TestWrite:
         del atext[0]
         assert atext.text == 'things'
         assert str(atext) == '\x1b[38;5;9mthings\x1b[0m'
+
+class TestWriteNoGroups:
+
+    def test_write_1(self):
+        ''' basic tests writing to plaintext '''
+        text = '\x1b[38;5;12mstuff \x1b[0m\x1b[38;5;9mthings\x1b[0m'
+        atext = AnsiText(text,index_groups=False)
+        atext[:5] = 'dogs!'
+        atext[-1] = '!'
+        assert atext.text == 'dogs! thing!'
+        assert str(atext) == '\x1b[38;5;12mdogs! \x1b[0m\x1b[38;5;9mthing!\x1b[0m'
+
+    def test_write_2(self):
+        ''' more tests writing to plaintext '''
+        text = '\x1b[38;5;12mstuff \x1b[0m\x1b[38;5;9mthings\x1b[0m'
+        atext = AnsiText(text,index_groups=False)
+        atext[5:] = 'dog'
+        atext[:5] = 'good-'
+        assert atext.text == 'good-dog'
+        assert str(atext) == '\x1b[38;5;12mgood-d\x1b[0m\x1b[38;5;9mog\x1b[0m'
+
+    def test_write_3(self):
+        ''' more tests writing to plaintext '''
+        text = '\x1b[38;5;12mstuff \x1b[0m\x1b[38;5;9mthings\x1b[0m'
+        atext = AnsiText(text,index_groups=False)
+        atext[5:] = 'dog'
+        atext[0] = 'X'
+        atext[-1] = 'X'
+        assert atext.text == 'XtuffdoX'
+        assert str(atext) == '\x1b[38;5;12mXtuffd\x1b[0m\x1b[38;5;9moX\x1b[0m'
+
+class TestIndexing:
+    """ Testing whether AnsiText indexing works as expected
+    """
+    def test_indexing_basic(self):
+        " tests whether we can index into the string properly"
+        text = 'some basic text'
+        ansi_text = AnsiText(text, index_groups=False)
+        assert ansi_text[:] == 'some basic text'
+        assert ansi_text[0] == 's'
+        assert ansi_text[:6] == 'some b'
+        assert ansi_text[-1] == 't'
+        assert ansi_text[::-1] == 'txet cisab emos'
+
+    def test_indexing_colored_text(self):
+        " tests whether we can index into a string with basic ansi formatting"
+        text = '\x1b[38;5;12mstuff\x1b[0m'
+        ansi_text = AnsiText(text, index_groups=False)
+        assert ansi_text[:] == 'stuff'
+        assert ansi_text[0] == 's'
+        assert ansi_text[:3] == 'stu'
+        assert ansi_text[-1] == 'f'
+        assert ansi_text[::-1] == 'ffuts'
+
+    def test_indexing_two_color_text(self):
+        " tests whether we can index into a string with basic ansi formatting"
+        text = '\x1b[38;5;12mstuff\x1b[0m\x1b[38;5;9mthings\x1b[0m'
+        ansi_text = AnsiText(text, index_groups=False)
+        assert ansi_text[:] == 'stuffthings'
+        assert ansi_text[0] == 's'
+        assert ansi_text[:7] == 'stuffth'
+        assert ansi_text[-1] == 's'
+        assert ansi_text[-2] == 'g'
+        assert ansi_text[::-1] == 'sgnihtffuts'
 
 ########################
 # Testing AnsiText regex
@@ -198,3 +262,36 @@ class TestRegex:
         assert [i.group('end') for i in m] == [None, CLEAR]
         assert len(m) == 2
         assert m[0].span() == (0, 20)
+
+class TestSubString:
+    """tests of substring read functionality"""
+    def test_read_with_ansi(self):
+        "does basic tests for ANSI formatted text"
+        text = '\x1b[38;5;12mABCDEFG'
+        regex = get_regex()
+        match = re.match(regex, text)
+        substring = AnsiSubString(match)
+        assert substring.text == 'ABCDEFG'
+        assert str(substring) == text
+        assert substring._text == list('ABCDEFG')
+        assert substring[0] == 'A'
+        assert substring[-1] == 'G'
+        assert substring[:3] == 'ABC'
+        assert substring[:] == 'ABCDEFG'
+        assert substring[::-1] == 'GFEDCBA'
+
+    def test_write_with_ansi(self):
+        "tests of substring write functionality"
+        text = '\x1b[38;5;12mABCDEFG'
+        regex = get_regex()
+        match = re.match(regex, text)
+        substring = AnsiSubString(match)
+        substring[0] = '0'
+        assert substring.text == '0BCDEFG'
+        assert str(substring) == '\x1b[38;5;12m0BCDEFG'
+        substring[:3] = '123'
+        assert substring.text == '123DEFG'
+        substring.text = 'DOG'
+        assert substring[:] == 'DOG'
+        assert substring.text == 'DOG'
+        assert substring._text == list('DOG')
