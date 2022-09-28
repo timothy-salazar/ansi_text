@@ -3,8 +3,8 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [project]
-name = "ansi-text"
-version = "1.0"
+name = "ansi_text"
+version = "1.0.3"
 authors = [
   { name="Timothy Salazar", email="tim@polytropos.ai" },
 ]
