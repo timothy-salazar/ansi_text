@@ -1,0 +1,22 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "ansi_text2"
+version = "1.0.0"
+authors = [
+  { name="Timothy Salazar", email="tim@polytropos.ai" },
+]
+description = "Tools for easily reading and manipulating text with formatting provided by ANSI escape sequences"
+readme = "README.md"
+requires-python = ">=3.7"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+]
+
+[project.urls]
+"Homepage" = "https://github.com/timothy-salazar/ansi_text"
+"Bug Tracker" = "https://github.com/timothy-salazar/ansi_text/issues"

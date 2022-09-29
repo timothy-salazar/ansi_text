@@ -63,10 +63,10 @@ class AnsiSubString:
     def __repr__(self):
         return f'< AnsiSubString: {self.text!r} >'
 
-    def __len__(self):
+    def __len__(self) -> int:
         return len(self._text)
 
-    def __getitem__(self, index):
+    def __getitem__(self, index) -> str:
         return ''.join(self._text[index])
 
     def __setitem__(self, index, value):
@@ -137,7 +137,7 @@ class AnsiText():
 
         Reads in text and uses a regular expression to find matches, which are
         then used to create AnsiSubString objects. Each of these contains
-        unformatted text along with the ANSI formatting information (if 
+        unformatted text along with the ANSI formatting information (if
         present).
         """
         ansi_re = get_regex()
@@ -172,16 +172,16 @@ class AnsiText():
     def __add__(self, other):
         return AnsiText(groups=(self.groups + other.groups))
 
-    def __len__(self):
+    def __len__(self) -> int:
         return len(self.text)
 
     @property
-    def text(self):
+    def text(self) -> str:
         " Returns the plaintext for all groups "
         return ''.join([i.text for i in self.groups])
 
     @property
-    def fmt(self):
+    def fmt(self) -> list:
         """ Returns a list of formattable strings.
         They have the form:
             "<ANSI formatting>{}<more ANSI formatting>"

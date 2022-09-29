@@ -1,7 +1,7 @@
 """ Tests for pytest """
 import re
 import textwrap
-from ansi_text import AnsiText, get_regex, AnsiSubString
+from ansi_text.ansi_text import AnsiText, get_regex, AnsiSubString
 
 
 CLEAR = '\x1b[0m'
