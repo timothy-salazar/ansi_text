@@ -2,7 +2,7 @@
 """
 import re
 
-def get_regex() -> str:
+def get_ansi_regex() -> str:
     """ Input:
             None
         Output:
@@ -140,7 +140,7 @@ class AnsiText():
         unformatted text along with the ANSI formatting information (if
         present).
         """
-        ansi_re = get_regex()
+        ansi_re = get_ansi_regex()
         self.groups = [AnsiSubString(match)
                        for match in re.finditer(ansi_re, raw)]
 
